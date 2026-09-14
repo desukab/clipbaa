@@ -1,0 +1,29 @@
+[
+  {
+    "marketplace": "amazon",
+    "marketplace_asin": "B07RSCPH4N",
+    "marketplace_title": "amazon basics Vacuum Compression Storage Bags with Hand Pump - Large, 5-Pack, Plastic",
+    "marketplace_price": 799.0,
+    "marketplace_reviews": 157165,
+    "marketplace_rating": 4.3,
+    "movers_rank": 20,
+    "bsr_current": 10000,
+    "seller_count": 0,
+    "fba_seller_count": 0,
+    "weight_g": 200,
+    "deodap_sku": "17826_5pc_vacuum_bag_with_pump",
+    "deodap_title": "Vacuum Storage Bags with Suction Pump \u2013 Space-Saving 5 Pcs Set",
+    "deodap_cost": 355.0,
+    "deodap_moq": 10,
+    "deodap_stock": 100,
+    "deodap_weight_g": 200,
+    "deodap_white_label": true,
+    "deodap_gst_compliant": true,
+    "match_confidence": 0.5166666666666666,
+    "net_margin_inr": 349.42,
+    "roi_pct": 83.4,
+    "absolute_margin_inr": 444.0,
+    "margin_percentage": 125.1,
+    "opportunity_score": 48.6
+  }
+]
