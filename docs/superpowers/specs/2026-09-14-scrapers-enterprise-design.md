@@ -116,9 +116,10 @@ scrapers/
   elapsed), matcher summary (candidates, winners, near-misses, opportunity >=65 count),
   export statuses, git commit (if available and requested), and the resolved
   settings minus secrets.
-- Exit codes: `0` clean; `1` one or more sources failed/mock-fallback used; `2`
-  configuration or startup error; `3` all sources failed; `4` missing optional
-  dependency when a live run is requested (e.g., scrapling not installed).
+- Exit codes: `0` clean success (including explicit `--mock` runs); `1` live run where
+  one or more sources failed and/or propagated to mock fallback; `2` configuration or
+  startup error; `3` all sources failed in a live run; `4` missing optional dependency
+  when a live run is requested (e.g., scrapling not installed).
 
 ## Errors (`errors.py`)
 
@@ -238,7 +239,7 @@ Entry point: console script `pipeline` and `python -m scrapers.cli`.
 ## Run & deliverables
 
 - In this environment: `pip install -e .[dev]` (core is pure-Python), run pytest,
-  then `pipeline run --mock --allow-mock-fallback` for all 4 sources → `pipeline match`
+  then `pipeline run --mock` for all 4 sources → `pipeline match`
   → `pipeline export --report` → `pipeline history --alerts`.
 - Deliverables handed to the user: ranked winners list (title, sku, cost→price, margin,
   confidence, opportunity) printed in chat + file paths for
