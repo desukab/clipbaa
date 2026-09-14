@@ -1,9 +1,4 @@
-# Core scraping engine
-scrapling[fetchers]>=0.4.15
-
-# Data processing / reporting
-pandas>=2.0.0
-
-# Parser engine dependencies
-lxml>=4.9.0
-cssselect>=1.2.0
+# Core runtime (pure Python): install this project instead
+#   pip install -e .             (core / mock + matcher + reports)
+#   pip install -e ".[fetchers]" (live scraping; needs a glibc host)
+#   pip install -e ".[dev]"      (core + test tooling)
