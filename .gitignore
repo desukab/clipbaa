@@ -16,3 +16,11 @@ frontend/test-results/
 backend/demo_clips/
 backend/demo_clips_*.log
 backend/run_demo.py
+
+# pipeline run artifacts (mock/live output on disk)
+data/runs/
+data/products.jsonl
+data/winners.md
+data/matched_products.csv
+data/matched_products.json
+data/near_matches.json
