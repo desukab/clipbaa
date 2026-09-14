@@ -1,7 +1,6 @@
 from scrapers.io import (
     atomic_write_json,
     atomic_write_text,
-    ensure_dir,
     load_json,
     new_run_id,
     write_manifest,

@@ -86,7 +86,9 @@ class Settings:
 
     amazon_movers_url: str = "https://www.amazon.in/gp/movers-and-shakers"
     amazon_bestsellers_urls: Tuple[str, ...] = DEFAULT_AMAZON_BESTSELLERS_URLS
-    amazon_node_categories: dict = field(default_factory=lambda: dict(DEFAULT_AMAZON_NODE_CATEGORIES))
+    amazon_node_categories: dict = field(
+        default_factory=lambda: dict(DEFAULT_AMAZON_NODE_CATEGORIES)
+    )
     meesho_trending_url: str = "https://www.meesho.com/trending"
     flipkart_bestsellers_url: str = "https://www.flipkart.com/best-sellers"
     deodap_base_url: str = "https://deodap.in"
@@ -110,7 +112,9 @@ class Settings:
         _validate(self)
 
     @classmethod
-    def from_env(cls, env: Optional[Mapping[str, str]] = None, env_file: Optional[str] = None) -> "Settings":
+    def from_env(
+        cls, env: Optional[Mapping[str, str]] = None, env_file: Optional[str] = None
+    ) -> "Settings":
         if env_file:
             try:
                 from dotenv import load_dotenv
@@ -133,11 +137,19 @@ class Settings:
             adaptive_percentage=_as_int(_env("SCRAPLING_ADAPTIVE_PERCENTAGE"), 40),
             crawldir=_env("SCRAPLING_CRAWL_DIR") or None,
             proxy_url=_env("SCRAPLING_PROXY") or None,
-            amazon_movers_url=_env("AMAZON_MOVERS_URL") or "https://www.amazon.in/gp/movers-and-shakers",
-            amazon_bestsellers_urls=as_csv(_env("AMAZON_BESTSELLERS_URLS")) or DEFAULT_AMAZON_BESTSELLERS_URLS,
-            amazon_node_categories=_as_dict(_env("AMAZON_NODE_CATEGORIES")) or DEFAULT_AMAZON_NODE_CATEGORIES,
+            amazon_movers_url=(
+                _env("AMAZON_MOVERS_URL") or "https://www.amazon.in/gp/movers-and-shakers"
+            ),
+            amazon_bestsellers_urls=(
+                as_csv(_env("AMAZON_BESTSELLERS_URLS")) or DEFAULT_AMAZON_BESTSELLERS_URLS
+            ),
+            amazon_node_categories=(
+                _as_dict(_env("AMAZON_NODE_CATEGORIES")) or DEFAULT_AMAZON_NODE_CATEGORIES
+            ),
             meesho_trending_url=_env("MEESHO_TRENDING_URL") or "https://www.meesho.com/trending",
-            flipkart_bestsellers_url=_env("FLIPKART_BESTSELLERS_URL") or "https://www.flipkart.com/best-sellers",
+            flipkart_bestsellers_url=(
+                _env("FLIPKART_BESTSELLERS_URL") or "https://www.flipkart.com/best-sellers"
+            ),
             deodap_base_url=_env("DEODAP_BASE_URL") or "https://deodap.in",
             deodap_categories=as_csv(_env("DEODAP_CATEGORIES")) or DEFAULT_DEODAP_CATEGORIES,
             deodap_max_pages=_as_int(_env("DEODAP_MAX_PAGES"), 3),
@@ -175,7 +187,9 @@ def _validate(s: Settings) -> None:
     if s.log_format not in _LOG_FORMATS:
         raise ConfigError(f"LOG_FORMAT must be one of {sorted(_LOG_FORMATS)}, got {s.log_format!r}")
     if not 0 <= s.adaptive_percentage <= 100:
-        raise ConfigError(f"SCRAPLING_ADAPTIVE_PERCENTAGE must be 0-100, got {s.adaptive_percentage}")
+        raise ConfigError(
+            f"SCRAPLING_ADAPTIVE_PERCENTAGE must be 0-100, got {s.adaptive_percentage}"
+        )
     if s.deodap_max_pages < 1:
         raise ConfigError(f"DEODAP_MAX_PAGES must be >= 1, got {s.deodap_max_pages}")
     if not 0 < s.min_confidence <= 1:
@@ -191,4 +205,6 @@ def _validate(s: Settings) -> None:
     if s.proxy_url:
         parsed = urlparse(s.proxy_url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-            raise ConfigError(f"SCRAPLING_PROXY must be an http(s)://host:port URL, got {s.proxy_url!r}")
+            raise ConfigError(
+                f"SCRAPLING_PROXY must be an http(s)://host:port URL, got {s.proxy_url!r}"
+            )

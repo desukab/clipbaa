@@ -27,7 +27,14 @@ def test_exit_codes():
     assert ok.exit_code() == 0
     fall = RunMetrics(sources=[SourceMetrics(name="a", status="mock-fallback")])
     assert fall.exit_code() == 1
-    failed = RunMetrics(sources=[SourceMetrics(name="a", status="failed"), SourceMetrics(name="b", status="ok")])
+    failed = RunMetrics(
+        sources=[SourceMetrics(name="a", status="failed"), SourceMetrics(name="b", status="ok")]
+    )
     assert failed.exit_code() == 1
-    af = RunMetrics(sources=[SourceMetrics(name="a", status="failed"), SourceMetrics(name="b", status="blocked")])
+    af = RunMetrics(
+        sources=[
+            SourceMetrics(name="a", status="failed"),
+            SourceMetrics(name="b", status="blocked"),
+        ]
+    )
     assert af.exit_code() == 3

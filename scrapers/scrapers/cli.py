@@ -15,6 +15,7 @@ from scrapers.io import atomic_write_json, ensure_dir, load_json, new_run_id, wr
 from scrapers.logging_setup import add_file_handler, setup_logging
 from scrapers.metrics import RunMetrics
 from scrapers.registry import get_source, list_sources
+from scrapers.sources.amazon import load_seed_asins
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -32,17 +33,22 @@ def _build_parser() -> argparse.ArgumentParser:
     p_run.set_defaults(func=_cmd_run)
 
     sub.add_parser("match", help="Run matching on existing raw data").set_defaults(func=_cmd_match)
-    sub.add_parser("history", help="Show price history velocity/alerts").set_defaults(func=_cmd_history)
-    sub.add_parser("list-sources", help="List registered sources").set_defaults(func=_cmd_list_sources)
-    sub.add_parser("validate-config", help="Validate configuration and exit").set_defaults(func=_cmd_validate)
+    p_history = sub.add_parser("history", help="Show price history velocity/alerts")
+    p_history.set_defaults(func=_cmd_history)
+    p_list = sub.add_parser("list-sources", help="List registered sources")
+    p_list.set_defaults(func=_cmd_list_sources)
+    p_validate = sub.add_parser("validate-config", help="Validate configuration and exit")
+    p_validate.set_defaults(func=_cmd_validate)
 
     p_export = sub.add_parser("export", help="Write reports and optional exports")
     p_export.add_argument("--sheets", action="store_true")
     p_export.add_argument("--webhook", action="store_true")
     p_export.set_defaults(func=_cmd_export)
 
-    p_asins = sub.add_parser("scrape-asins", help="Scrape specific Amazon ASINs (live)")
-    p_asins.add_argument("asins", nargs="+")
+    p_asins = sub.add_parser(
+        "scrape-asins", help="Scrape specific Amazon ASINs (live; defaults to seed_asins.json)"
+    )
+    p_asins.add_argument("asins", nargs="*")
     p_asins.set_defaults(func=_cmd_scrape_asins)
     return parser
 
@@ -56,7 +62,10 @@ def _settings(args) -> Settings:
 
 def _cmd_list_sources(args) -> int:
     for spec in list_sources():
-        print(f"{spec.name:<10} {spec.title}  ({len(spec.mock_items)} mock items, out={spec.output_file})")
+        print(
+            f"{spec.name:<10} {spec.title}  ({len(spec.mock_items)} mock items, "
+            f"out={spec.output_file})"
+        )
     return 0
 
 
@@ -156,7 +165,9 @@ def run_pipeline(
     for spec in source_specs:
         metric = metrics.for_source(spec.name)
         started = time.perf_counter()
-        status, items, note = _crawl_source(spec, settings, mode, allow_mock_fallback, max_products, log)
+        status, items, note = _crawl_source(
+            spec, settings, mode, allow_mock_fallback, max_products, log
+        )
         metric.status = status
         if status == "failed":
             metric.failed = 1
@@ -168,7 +179,13 @@ def run_pipeline(
             path = os.path.join(settings.output_dir, spec.output_file)
             atomic_write_json(path, items)
             raw_products[spec.name] = items
-            log.info("source %s done: status=%s items=%d%s", spec.name, status, len(items), f" ({note})" if note else "")
+            log.info(
+                "source %s done: status=%s items=%d%s",
+                spec.name,
+                status,
+                len(items),
+                f" ({note})" if note else "",
+            )
         metric.elapsed_ms = int((time.perf_counter() - started) * 1000)
 
     summary = run_matching(settings)
@@ -200,7 +217,12 @@ def run_pipeline(
     }
     manifest_path = write_manifest(settings.output_dir, run_id, manifest)
     _print_summary(summary, settings)
-    log.info("pipeline run finished: run_dir=%s, manifest=%s, exit after mode=%s", run_id, manifest_path, mode)
+    log.info(
+        "pipeline run finished: run_dir=%s, manifest=%s, exit after mode=%s",
+        run_id,
+        manifest_path,
+        mode,
+    )
     return 0 if mode == "mock" else metrics.exit_code()
 
 
@@ -212,7 +234,9 @@ def _print_summary(summary, settings):
     print(f"NEAR MISSES:          {len(summary.near_misses)}")
     print("=" * 70)
     winners = summary.winners
-    listing = winners or sorted(summary.candidates, key=lambda m: m.opportunity_score, reverse=True)[:10]
+    listing = winners or sorted(
+        summary.candidates, key=lambda m: m.opportunity_score, reverse=True
+    )[:10]
     if not listing:
         print("No candidates matched. Adjust thresholds (MIN_CONFIDENCE, MIN_TICKET_PRICE, ...).")
         return
@@ -221,7 +245,8 @@ def _print_summary(summary, settings):
         print(
             f"{position:>2}. {m.marketplace_title[:52]:<52} | {m.deodap_sku:<12} | "
             f"₹{m.deodap_cost} -> ₹{m.marketplace_price} | ₹{m.absolute_margin_inr} | "
-            f"{m.margin_percentage}% | conf {m.match_confidence:.0%} | opp {m.opportunity_score}{tag}"
+            f"{m.margin_percentage}% | conf {m.match_confidence:.0%} | opp "
+            f"{m.opportunity_score}{tag}"
         )
 
 
@@ -229,7 +254,9 @@ def _cmd_run(args) -> int:
     try:
         settings = _settings(args)
         mode = "mock" if args.mock else "live"
-        names = [n.strip() for n in (args.sources or "").split(",") if n.strip()] if getattr(args, "sources", None) else None
+        names = None
+        if getattr(args, "sources", None):
+            names = [n.strip() for n in args.sources.split(",") if n.strip()]
         specs = _resolve_sources(names) if names else list(list_sources())
         return run_pipeline(settings, mode=mode, source_specs=specs,
                             allow_mock_fallback=args.allow_mock_fallback,
@@ -303,13 +330,28 @@ def _cmd_export(args) -> int:
     return 0
 
 
+def _resolve_scrape_asins(provided: Optional[List[str]]) -> List[str]:
+    """Explicit CLI ASINs win; otherwise fall back to the seed file (never silent mock)."""
+    asins = list(provided or [])
+    if asins:
+        return asins
+    asins = load_seed_asins()
+    if not asins:
+        raise ConfigError(
+            "no ASINs provided and seed file is empty; run `pipeline scrape-asins B0...` "
+            "with explicit ASINs or add ASINs to scrapers/scrapers/sources/seed_asins.json"
+        )
+    return asins
+
+
 def _cmd_scrape_asins(args) -> int:
     from scrapers.sources.amazon import SEED_FILE, SeedAsinsSpider
     from scrapers.sources.base import run_spider
 
     settings = _settings(args)
     setup_logging(settings.log_level, settings.log_format)
-    spider = SeedAsinsSpider(asins=args.asins, crawldir=settings.crawldir, max_products=0)
+    asins = _resolve_scrape_asins(args.asins)
+    spider = SeedAsinsSpider(asins=asins, crawldir=settings.crawldir, max_products=0)
     items = run_spider(spider)
     atomic_write_json(os.path.join(settings.output_dir, "amazon_movers_raw.json"), items)
     seed = load_json(str(SEED_FILE), default={}) or {"amazon_movers": {"asins": []}}
@@ -317,7 +359,10 @@ def _cmd_scrape_asins(args) -> int:
     scraped = {str(i["asin"]) for i in items if i.get("asin")}
     seed["amazon_movers"]["asins"] = sorted(set(seed["amazon_movers"]["asins"]) | scraped)
     atomic_write_json(str(SEED_FILE), seed)
-    print(f"scraped {len(items)} asins; seed file now has {len(seed['amazon_movers']['asins'])} asins")
+    print(
+        f"scraped {len(items)} asins; seed file now has "
+        f"{len(seed['amazon_movers']['asins'])} asins"
+    )
     return 0
 
 

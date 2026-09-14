@@ -1,5 +1,4 @@
 import csv
-from dataclasses import asdict
 
 from scrapers.config import Settings
 from scrapers.io import load_json

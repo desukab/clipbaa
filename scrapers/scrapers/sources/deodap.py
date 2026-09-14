@@ -4,7 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import List, Optional
 
 from scrapers.parsing_utils import extract_product_id
-from scrapers.sources.base import FetcherSession, MarketplaceSpider
+from scrapers.sources.base import FetcherSession, MarketplaceSpider, Request, Response
 
 
 @dataclass
@@ -337,7 +337,12 @@ class DeodapSpider(MarketplaceSpider):
         if not handles:
             self.logger.warning("No product links in collection %s", category)
             return
-        self.logger.info("Collection %s page %s: %d products", category, response.request.meta.get("page", ""), len(handles))
+        self.logger.info(
+            "Collection %s page %s: %d products",
+            category,
+            response.request.meta.get("page", ""),
+            len(handles),
+        )
         for handle in handles:
             yield Request(
                 f"{BASE_URL}{handle}",
@@ -399,11 +404,15 @@ def _parse_shopify_product(response: Response, category: str) -> Optional[Deodap
     images = list(
         dict.fromkeys(
             src
-            for src in re.findall(r"//deodap\.in/cdn/shop/files/[^\"' )?]+\.(?:png|jpe?g|webp|avif)", body)
+            for src in re.findall(
+                r"//deodap\.in/cdn/shop/files/[^\"' )?]+\.(?:png|jpe?g|webp|avif)", body
+            )
         )
     )[:5]
 
-    product_url = response.url.replace("?variant=", "?variant=") if "?" in response.url else response.url
+    product_url = (
+        response.url.replace("?variant=", "?variant=") if "?" in response.url else response.url
+    )
 
     return DeodapProduct(
         sku=sku or extract_product_id(product_url, "/products/") or "unknown",
@@ -438,9 +447,13 @@ if __name__ == "__main__":
 
     import argparse
 
-    parser = argparse.ArgumentParser(description="DeoDap wholesale catalog spider (use `pipeline run` instead)")
+    parser = argparse.ArgumentParser(
+        description="DeoDap wholesale catalog spider (use `pipeline run` instead)"
+    )
     parser.add_argument("--mock", action="store_true", help="Write bundled mock data")
-    parser.add_argument("--categories", type=str, default=None, help="Comma-separated category slugs")
+    parser.add_argument(
+        "--categories", type=str, default=None, help="Comma-separated category slugs"
+    )
     args = parser.parse_args()
     categories = [c.strip() for c in args.categories.split(",")] if args.categories else None
 

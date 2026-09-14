@@ -52,7 +52,9 @@ def _has_json_formatter(handlers):
 def add_file_handler(path: str) -> None:
     root = logging.getLogger()
     handler = logging.FileHandler(path, encoding="utf-8")
-    handler.setFormatter(fmt_fn["json"] if _has_json_formatter(root.handlers) else fmt_fn["console"])
+    handler.setFormatter(
+        fmt_fn["json"] if _has_json_formatter(root.handlers) else fmt_fn["console"]
+    )
     handler.setLevel(root.level)
     root.addHandler(handler)
 

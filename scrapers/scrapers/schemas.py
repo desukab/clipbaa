@@ -1,5 +1,5 @@
 """Normalized ProductRecord schema: coercion + validation (stdlib only)."""
-from typing import List, Optional
+from typing import List
 
 _MARKETPLACE_SOURCES = {"amazon", "meesho", "flipkart"}
 _NUMERIC_FIELDS = (

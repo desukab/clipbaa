@@ -2,7 +2,7 @@ import io
 import json
 import logging
 
-from scrapers.logging_setup import add_file_handler, fmt_fn, redact_url, setup_logging
+from scrapers.logging_setup import add_file_handler, fmt_fn, redact_url
 
 
 def test_redact_url_strips_credentials():

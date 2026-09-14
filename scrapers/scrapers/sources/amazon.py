@@ -3,9 +3,9 @@ import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from scrapers.sources.base import MarketplaceSpider
+from scrapers.sources.base import AsyncStealthySession, MarketplaceSpider, Request, Response
 from scrapers.parsing_utils import (
     extract_product_id,
     parse_bsr,
@@ -45,7 +45,10 @@ class MoversProduct:
 MOCK_AMAZON_MOVERS = [
     MoversProduct(
         asin="B09X7Y6Z5W",
-        title="Silicone Stretch Lids Set of 12 - Reusable Food Covers for Bowls, Microwave Safe, BPA Free Kitchen Storage Accessories",
+        title=(
+            "Silicone Stretch Lids Set of 12 - Reusable Food Covers for Bowls, "
+            "Microwave Safe, BPA Free Kitchen Storage Accessories"
+        ),
         category="Kitchen > Storage & Organization > Food Storage",
         current_price=199.0,
         mrp=499.0,
@@ -68,7 +71,10 @@ MOCK_AMAZON_MOVERS = [
     ),
     MoversProduct(
         asin="B08V5T4R3Q",
-        title="Stainless Steel Garlic Press - Professional Chef Grade with Cleaning Tool, Dishwasher Safe",
+        title=(
+            "Stainless Steel Garlic Press - Professional Chef Grade with Cleaning Tool, "
+            "Dishwasher Safe"
+        ),
         category="Kitchen > Tools & Gadgets > Garlic Presses",
         current_price=249.0,
         mrp=599.0,
@@ -91,7 +97,10 @@ MOCK_AMAZON_MOVERS = [
     ),
     MoversProduct(
         asin="B07K9L8M7N",
-        title="Herb Scissors 5-Blade with Cleaning Comb - Multipurpose Kitchen Scissors for Herbs, Vegetables",
+        title=(
+            "Herb Scissors 5-Blade with Cleaning Comb - Multipurpose Kitchen Scissors for "
+            "Herbs, Vegetables"
+        ),
         category="Kitchen > Tools & Gadgets > Herb Tools",
         current_price=179.0,
         mrp=399.0,
@@ -305,6 +314,8 @@ def category_for_url(url: str) -> str:
     if "bestsellers/kitchen" in url or "movers-and-shakers" in url:
         return "kitchen"
     return "amazon"
+
+
 ADAPTIVE_DOMAIN = "amazon.in"
 
 
@@ -427,7 +438,9 @@ class AmazonMoversSpider(MarketplaceSpider):
         except Exception as exc:
             self.logger.error("Parse failed for %s: %s", asin, exc)
             return
-        if not product.current_price and (not product.title or product.title.startswith("Product ")):
+        if not product.current_price and (
+            not product.title or product.title.startswith("Product ")
+        ):
             self.logger.info("Empty enrichment for %s; keeping card data", asin)
             return
         item = asdict(product)
@@ -437,7 +450,13 @@ class AmazonMoversSpider(MarketplaceSpider):
     def _parse_product(self, response: Response, asin: str, rank: int, url: str) -> MoversProduct:
         title = self._text(response, "amazon:title", "#productTitle") or f"Product {asin}"
         current_price = parse_price(
-            self._text(response, "amazon:price", ".a-price .a-offscreen", "#priceblock_ourprice", "#priceblock_dealprice")
+            self._text(
+                response,
+                "amazon:price",
+                ".a-price .a-offscreen",
+                "#priceblock_ourprice",
+                "#priceblock_dealprice",
+            )
         )
         mrp = parse_price(
             self._text(response, "amazon:mrp", ".a-text-price .a-offscreen", "#listPrice")
@@ -447,21 +466,34 @@ class AmazonMoversSpider(MarketplaceSpider):
             discount_pct = int(round((1 - current_price / mrp) * 100))
 
         rating = parse_rating(
-            self._text(response, "amazon:rating", "#averageCustomerReviews .a-icon-alt", '[data-hook="rating-out-of-text"]')
+            self._text(
+                response,
+                "amazon:rating",
+                "#averageCustomerReviews .a-icon-alt",
+                '[data-hook="rating-out-of-text"]',
+            )
         )
         review_count = parse_int(
             self._text(response, "amazon:reviews", "#acrCustomerReviewText"), 0
         )
 
         detail_text = self._body(
-            response, "amazon:details", "#detailBullets_feature_div", "#productDetails_detailBullets_sections1"
+            response,
+            "amazon:details",
+            "#detailBullets_feature_div",
+            "#productDetails_detailBullets_sections1",
         ) or ""
         bsr_current, bsr_category = parse_bsr(detail_text)
         weight_g = parse_weight_g(detail_text)
         dimensions_cm = parse_dimensions_cm(detail_text)
 
         category = " > ".join(
-            self._all(response, "amazon:breadcrumb", "#wayfinding-breadcrumbs_feature_div a", "#nav-breadcrumbs a")[-3:]
+            self._all(
+                response,
+                "amazon:breadcrumb",
+                "#wayfinding-breadcrumbs_feature_div a",
+                "#nav-breadcrumbs a",
+            )[-3:]
         ) or "Unknown"
 
         images_count = self._count(response, "#altImages img, #imgTagWrapperId img") or 1
@@ -529,7 +561,9 @@ if __name__ == "__main__":
 
     import argparse
 
-    parser = argparse.ArgumentParser(description="Amazon Movers & Shakers spider (use `pipeline run` instead)")
+    parser = argparse.ArgumentParser(
+        description="Amazon Movers & Shakers spider (use `pipeline run` instead)"
+    )
     parser.add_argument("--mock", action="store_true", help="Write bundled mock data")
     parser.add_argument("--limit", type=int, default=50, help="Max products per category")
     args = parser.parse_args()

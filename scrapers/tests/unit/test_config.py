@@ -59,7 +59,9 @@ def test_validation_fails_fast():
 
 
 def test_to_dict_redacts_secrets():
-    s = Settings.from_env(env={"WEBHOOK_SECRET": "hunter2", "SCRAPLING_PROXY": "http://user:pass@host:8080"})
+    s = Settings.from_env(
+        env={"WEBHOOK_SECRET": "hunter2", "SCRAPLING_PROXY": "http://user:pass@host:8080"}
+    )
     d = s.to_dict(redact=True)
     assert d["webhook_secret"] == "***"
     assert "pass" not in d["proxy_url"]

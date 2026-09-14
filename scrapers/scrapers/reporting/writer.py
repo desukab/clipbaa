@@ -34,14 +34,18 @@ def _winner_row(m: MatchRecord) -> dict:
     }
 
 
-def write_winners_markdown(winners: List[MatchRecord], path: Optional[str] = None, top_n: int = 25) -> str:
+def write_winners_markdown(
+    winners: List[MatchRecord], path: Optional[str] = None, top_n: int = 25
+) -> str:
     lines = [
         "# Matched Product Winners",
         "",
         "> Ranked opportunity report. Thresholds are config-driven (see run manifest).",
         "",
-        "| Rank | Marketplace | Title | DeoDap SKU | Cost | Price | Margin INR | Margin % | Conf | Opportunity |",
-        "|------|-------------|-------|------------|------|-------|-----------|----------|------|------------|",
+        "| Rank | Marketplace | Title | DeoDap SKU | Cost | Price | Margin INR | "
+        "Margin % | Conf | Opportunity |",
+        "|------|-------------|-------|------------|------|-------|-----------|----------|"
+        "------|------------|",
     ]
     for i, m in enumerate(winners[:top_n], 1):
         lines.append(

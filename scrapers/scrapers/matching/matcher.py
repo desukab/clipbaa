@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 
 from scrapers.config import Settings
 from scrapers.io import load_json
+from scrapers.matching.fees import get_fee_model
 from scrapers.matching.scoring import (
     calculate_margin,
     eligible_deodap,
@@ -50,8 +51,8 @@ class MatchRecord:
     deodap_gst_compliant: bool = False
 
     match_confidence: float = 0.0
-    net_margin_inr: float = 0.0
-    roi_pct: float = 0.0
+    net_margin_inr: Optional[float] = None
+    roi_pct: Optional[float] = None
     absolute_margin_inr: float = 0.0
     margin_percentage: float = 0.0
     opportunity_score: float = 0.0
@@ -126,20 +127,23 @@ class DeodapMatcher:
         mp_weight = int(to_float(mp.get("weight_g")) or 200)
         mp_price = to_float(mp.get("current_price"))
         cost = to_float(best_match.get("cost_price"))
+        source = str(mp.get("source") or "unknown")
 
-        net_margin, roi = calculate_margin(mp_price, cost, mp_weight)
+        net_margin, roi = calculate_margin(mp_price, cost, mp_weight, get_fee_model(source))
         absolute_margin_inr = round(mp_price - cost, 2)
         margin_percentage = round(((mp_price - cost) / cost) * 100, 1) if cost > 0 else 0.0
 
         movers_rank = mp.get("movers_rank") or 999
         review_count = int(to_float(mp.get("review_count")))
-        bsr_avg = to_float(mp.get("bsr_30d_avg")) or (to_float(mp.get("bsr_current")) or 10000) * 2
-        bsr_current = to_float(mp.get("bsr_current")) or 10000
+        raw_bsr_avg = mp.get("bsr_30d_avg")
+        raw_bsr_current = mp.get("bsr_current")
+        bsr_avg = to_float(raw_bsr_avg) if raw_bsr_avg is not None else None
+        bsr_current = to_float(raw_bsr_current) if raw_bsr_current is not None else None
 
         opportunity = opportunity_score(movers_rank, review_count, bsr_avg, bsr_current, roi)
 
         return MatchRecord(
-            marketplace=mp.get("source", "unknown"),
+            marketplace=source,
             marketplace_asin=mp.get("asin") or mp.get("product_id") or "",
             marketplace_title=mp_title,
             marketplace_price=mp_price,
@@ -159,8 +163,8 @@ class DeodapMatcher:
             deodap_white_label=bool(best_match.get("white_label")),
             deodap_gst_compliant=bool(best_match.get("gst_compliant")),
             match_confidence=best_confidence,
-            net_margin_inr=round(net_margin, 2),
-            roi_pct=round(roi, 1),
+            net_margin_inr=round(net_margin, 2) if net_margin is not None else None,
+            roi_pct=round(roi, 1) if roi is not None else None,
             absolute_margin_inr=absolute_margin_inr,
             margin_percentage=margin_percentage,
             opportunity_score=round(opportunity, 1),
@@ -177,6 +181,8 @@ class DeodapMatcher:
     ) -> list:
         winners = []
         for m in candidates:
+            if m.net_margin_inr is None:
+                continue
             if m.marketplace_price < min_ticket_price:
                 continue
             if m.absolute_margin_inr < min_absolute_margin:
@@ -190,7 +196,10 @@ class DeodapMatcher:
             if is_noise(m.marketplace_title):
                 continue
             winners.append(m)
-        winners.sort(key=lambda m: (utility_bonus(m.marketplace_title), m.opportunity_score), reverse=True)
+        winners.sort(
+            key=lambda m: (utility_bonus(m.marketplace_title), m.opportunity_score),
+            reverse=True,
+        )
         return winners
 
 

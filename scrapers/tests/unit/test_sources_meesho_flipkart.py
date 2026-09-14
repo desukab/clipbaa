@@ -1,4 +1,8 @@
-from scrapers.sources.flipkart import MOCK_FLIPKART_BESTSELLERS, FlipkartSpider, mock_items as fk_mock
+from scrapers.sources.flipkart import (
+    MOCK_FLIPKART_BESTSELLERS,
+    FlipkartSpider,
+    mock_items as fk_mock,
+)
 from scrapers.sources.meesho import MOCK_MEESHO_TRENDING, MeeshoSpider, mock_items as ms_mock
 
 

@@ -25,27 +25,29 @@ Search Amazon.in for popular categories and note ASINs from URLs:
 
 ## Add to seed_asins.json
 
-Edit `/workspaces/clipbaa/scrapers/seed_asins.json`:
+Edit `scrapers/scrapers/sources/seed_asins.json` (checked into the `scrapers` package):
 ```json
 {
   "amazon_movers": {
-    "asins": ["B0REAL12345", "B0REAL67890", ...]
+    "asins": ["B0REAL12345", "B0REAL67890", "..."]
   }
 }
 ```
 
-## Then Run Pipeline
+## How the seed file is used
+
+Seeds are **not** injected into `pipeline run --live` — the Amazon spider discovers
+products from the Movers & Shakers / Bestsellers pages instead. The seed file is
+consumed only by the dedicated ASIN scraper:
 
 ```bash
-python -m scrapers.pipeline --live
+# Scrape the ASINs listed in seed_asins.json:
+pipeline scrape-asins
+
+# Scrape a specific set and add them to the seed file:
+pipeline scrape-asins B0REAL12345 B0REAL67890
 ```
 
-This will use your seed ASINs instead of mock data.
-
-## Scrape & Save New ASINs
-
-```bash
-python -m scrapers.scrape_asins B0REAL12345 B0REAL67890
-```
-
-This scrapes product details and saves to both seed_asins.json and data/amazon_movers_raw.json.
+This writes product details to `data/amazon_movers_raw.json` and merges the scraped
+ASINs into `seed_asins.json`. Both commands require live scraping
+(`scrapling[fetchers]` installed).

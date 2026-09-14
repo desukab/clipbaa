@@ -1,4 +1,9 @@
-from scrapers.sources.deodap import DeodapSpider, MOCK_DEODAP_CATALOG, mock_items, resolve_categories
+from scrapers.sources.deodap import (
+    DeodapSpider,
+    MOCK_DEODAP_CATALOG,
+    mock_items,
+    resolve_categories,
+)
 
 
 def test_mock_catalog_complete():

@@ -3,6 +3,8 @@ import re
 from difflib import SequenceMatcher
 from typing import Dict, Optional, Tuple
 
+from scrapers.matching.fees import MarketplaceFeeModel
+
 NEAR_MISS_FLOOR = 0.35
 
 NOISE_PATTERNS = [
@@ -81,23 +83,27 @@ def similarity(a: str, b: str) -> float:
     return 0.6 * jaccard + 0.4 * ratio
 
 
-def calculate_margin(marketplace_price: float, deodap_cost: float, weight_g: int) -> Tuple[float, float]:
-    """Net margin and accounting ROI (after fees + GST using landed cost)."""
-    referral_fee = marketplace_price * 0.15
-    closing_fee = 5 if marketplace_price <= 250 else 10
+def calculate_margin(
+    marketplace_price: float,
+    deodap_cost: float,
+    weight_g: int,
+    fee_model: Optional[MarketplaceFeeModel] = None,
+) -> Tuple[Optional[float], Optional[float]]:
+    """Net margin and accounting ROI after fees + GST using landed cost.
 
-    if weight_g <= 200:
-        shipping_fee = 16
-    elif weight_g <= 500:
-        shipping_fee = 22
-    else:
-        shipping_fee = 35
+    Returns ``(None, None)`` (``INSUFFICIENT_DATA``) when the marketplace has no
+    registered fee model; fees are never assumed for unknown marketplaces.
+    """
+    if fee_model is None:
+        return None, None
+    fee_total = fee_model.fee_total(marketplace_price, weight_g)
+    if fee_total is None:
+        return None, None
+    landed_cost = (
+        deodap_cost * (1 + fee_model.gst_rate) if fee_model.gst_rate is not None else deodap_cost
+    )
 
-    gst_on_fees = (closing_fee + shipping_fee) * 0.18
-    total_fees = referral_fee + closing_fee + shipping_fee + gst_on_fees
-    landed_cost = deodap_cost * 1.18
-
-    net_margin = marketplace_price - total_fees - landed_cost
+    net_margin = marketplace_price - fee_total - landed_cost
     roi = (net_margin / landed_cost) * 100 if landed_cost > 0 else 0
 
     return net_margin, roi
@@ -113,24 +119,39 @@ def competition_score(review_count: int) -> int:
     return 20
 
 
-def velocity_score(bsr_avg: float, bsr_current: float) -> float:
-    if bsr_avg <= 0:
-        return 0.0
+def velocity_score(bsr_avg: Optional[float], bsr_current: Optional[float]) -> Optional[float]:
+    """Demand velocity from BSR trend. None = INSUFFICIENT_DATA (not fabricable).
+
+    Requires a real 30-day average AND a real current rank; a missing or
+    non-positive value on either side means there is no honest signal.
+    """
+    if bsr_avg is None or bsr_current is None:
+        return None
+    if bsr_avg <= 0 or bsr_current <= 0:
+        return None
     return max(0.0, min(100.0, ((bsr_avg - bsr_current) / bsr_avg) * 100))
 
 
 def opportunity_score(
     movers_rank: int,
     review_count: int,
-    bsr_avg: float,
-    bsr_current: float,
-    roi: float,
+    bsr_avg: Optional[float],
+    bsr_current: Optional[float],
+    roi: Optional[float],
 ) -> float:
     movers_score = max(0, 101 - (movers_rank or 999))
     comp_score = competition_score(review_count)
     vel = velocity_score(bsr_avg, bsr_current)
-    roi_score = min(100.0, roi / 2)
-    return movers_score * 0.30 + comp_score * 0.30 + vel * 0.20 + roi_score * 0.20
+    roi_score = min(100.0, roi / 2) if roi is not None else None
+    terms = [(movers_score, 0.30), (comp_score, 0.30)]
+    weights_sum = 0.60
+    if vel is not None:
+        terms.append((vel, 0.20))
+        weights_sum += 0.20
+    if roi_score is not None:
+        terms.append((roi_score, 0.20))
+        weights_sum += 0.20
+    return sum(score * (w / weights_sum) for score, w in terms)
 
 
 def is_noise(title: str) -> bool:

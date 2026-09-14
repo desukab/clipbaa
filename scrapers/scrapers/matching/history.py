@@ -101,5 +101,7 @@ def compute_alerts(
         if len(stocks) >= 2:
             first_stock, last_stock = stocks[0]["stock"], stocks[-1]["stock"]
             if first_stock < restock_threshold and last_stock >= restock_threshold:
-                alerts.append({"key": key, "kind": "restock", "from": first_stock, "to": last_stock})
+                alerts.append(
+                    {"key": key, "kind": "restock", "from": first_stock, "to": last_stock}
+                )
     return alerts

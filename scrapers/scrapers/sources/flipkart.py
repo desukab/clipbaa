@@ -3,7 +3,7 @@ import re
 from dataclasses import asdict, dataclass
 from typing import List, Optional
 
-from scrapers.sources.base import AsyncStealthySession, MarketplaceSpider
+from scrapers.sources.base import AsyncStealthySession, MarketplaceSpider, Request, Response
 from scrapers.parsing_utils import (
     extract_product_id,
     parse_dimensions_cm,
@@ -128,7 +128,9 @@ MOCK_FLIPKART_BESTSELLERS = [
 ]
 
 
-BESTSELLERS_URL = os.environ.get("FLIPKART_BESTSELLERS_URL", "https://www.flipkart.com/best-sellers")
+BESTSELLERS_URL = os.environ.get(
+    "FLIPKART_BESTSELLERS_URL", "https://www.flipkart.com/best-sellers"
+)
 ADAPTIVE_DOMAIN = "flipkart.com"
 
 
@@ -202,9 +204,17 @@ class FlipkartSpider(MarketplaceSpider):
         yield asdict(product)
 
     def _parse_product(self, response: Response, product_id: str, url: str) -> FlipkartProduct:
-        title = self._text(response, "flipkart:title", "h1.x-product-title, .product-title, h1") or f"Product {product_id}"
+        title = self._text(
+            response, "flipkart:title", "h1.x-product-title, .product-title, h1"
+        ) or f"Product {product_id}"
         current_price = parse_price(
-            self._text(response, "flipkart:price", '[data-testid="price"]', ".x-price-primary", ".price")
+            self._text(
+                response,
+                "flipkart:price",
+                '[data-testid="price"]',
+                ".x-price-primary",
+                ".price",
+            )
         )
         mrp = parse_price(
             self._text(response, "flipkart:mrp", '[data-testid="mrp"]', ".x-price-mrp", ".mrp")
@@ -214,31 +224,67 @@ class FlipkartSpider(MarketplaceSpider):
             discount_pct = int(round((1 - current_price / mrp) * 100))
 
         rating = parse_rating(
-            self._text(response, "flipkart:rating", '[data-testid="rating"]', ".x-rating", ".rating")
+            self._text(
+                response,
+                "flipkart:rating",
+                '[data-testid="rating"]',
+                ".x-rating",
+                ".rating",
+            )
         )
         review_count = parse_int(
-            self._text(response, "flipkart:reviews", '[data-testid="review-count"]', ".review-count")
+            self._text(
+                response,
+                "flipkart:reviews",
+                '[data-testid="review-count"]',
+                ".review-count",
+            )
         )
         order_count = parse_int(
-            self._text(response, "flipkart:orders", '[data-testid="order-count"]', ".order-count", ".sold")
+            self._text(
+                response,
+                "flipkart:orders",
+                '[data-testid="order-count"]',
+                ".order-count",
+                ".sold",
+            )
         )
 
-        images_count = self._count(response, ".product-image img, [data-testid='product-image'] img") or 1
+        images_count = self._count(
+            response, ".product-image img, [data-testid='product-image'] img"
+        ) or 1
         has_video = bool(response.css(".video-container, [data-testid='video']"))
 
         weight_g = parse_weight_g(
-            self._text(response, "flipkart:weight", '[data-testid="weight"]', ".weight", ".product-weight")
+            self._text(
+                response,
+                "flipkart:weight",
+                '[data-testid="weight"]',
+                ".weight",
+                ".product-weight",
+            )
         )
         dimensions_cm = parse_dimensions_cm(
             self._text(response, "flipkart:dimensions", '[data-testid="dimensions"]', ".dimensions")
         )
 
         seller_count = max(1, self._count(response, ".seller-list .seller, [data-testid='seller']"))
-        seller_text = self._body(response, "flipkart:sellers", ".seller-list", '[data-testid="seller-info"]') or ""
-        fba_seller_count = 1 if re.search(r"Flipkart Assured|Fulfilled by", seller_text, re.IGNORECASE) else 0
+        seller_text = self._body(
+            response, "flipkart:sellers", ".seller-list", '[data-testid="seller-info"]'
+        ) or ""
+        fba_seller_count = (
+            1
+            if re.search(r"Flipkart Assured|Fulfilled by", seller_text, re.IGNORECASE)
+            else 0
+        )
 
         category = " > ".join(
-            self._all(response, "flipkart:breadcrumb", ".breadcrumb a, .category-breadcrumb a", '[data-testid="breadcrumb"] a')[-3:]
+            self._all(
+                response,
+                "flipkart:breadcrumb",
+                ".breadcrumb a, .category-breadcrumb a",
+                '[data-testid="breadcrumb"] a',
+            )[-3:]
         ) or "Unknown"
 
         return FlipkartProduct(
@@ -270,7 +316,9 @@ if __name__ == "__main__":
 
     import argparse
 
-    parser = argparse.ArgumentParser(description="Flipkart Bestsellers spider (use `pipeline run` instead)")
+    parser = argparse.ArgumentParser(
+        description="Flipkart Bestsellers spider (use `pipeline run` instead)"
+    )
     parser.add_argument("--mock", action="store_true", help="Write bundled mock data")
     parser.add_argument("--limit", type=int, default=25, help="Max products")
     args = parser.parse_args()

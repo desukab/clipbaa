@@ -1,6 +1,9 @@
+import pytest
+
 from scrapers.config import Settings
 from scrapers.io import atomic_write_json
 from scrapers.matching.matcher import DeodapMatcher, MatchSummary, run_matching
+from scrapers.matching.scoring import opportunity_score
 
 CATALOG = [
     {"sku": "SKU1", "title": "Silicone Stretch Lids Set of 12 Reusable Food Covers",
@@ -56,3 +59,55 @@ def test_matcher_near_miss_below_confidence():
     assert matches == []
     assert len(m.near_misses) >= 1
     assert all(x.match_confidence < 0.9 for x in m.near_misses)
+
+
+def test_matcher_does_not_fabricate_bsr_when_missing():
+    m = DeodapMatcher(min_confidence=0.5)
+    m.deodap_catalog = CATALOG
+    no_bsr = dict(AMZ[0])
+    no_bsr.pop("bsr_current")
+    no_bsr.pop("bsr_30d_avg")
+    rec = m.find_matches([no_bsr])[0]
+    assert rec.bsr_current is None
+    expected = opportunity_score(
+        rec.movers_rank or 999, rec.marketplace_reviews, None, None, rec.roi_pct
+    )
+    assert rec.opportunity_score == pytest.approx(expected, abs=0.1)
+
+
+def test_matcher_uses_real_bsr_velocity_when_present():
+    m = DeodapMatcher(min_confidence=0.5)
+    m.deodap_catalog = CATALOG
+    rec = m.find_matches([dict(AMZ[0])])[0]
+    assert rec.bsr_current == 1250
+    expected = opportunity_score(
+        rec.movers_rank or 999, rec.marketplace_reviews, 1500.0, 1250.0, rec.roi_pct
+    )
+    assert rec.opportunity_score == pytest.approx(expected, abs=0.1)
+
+
+def test_matcher_unknown_marketplace_has_no_margin():
+    m = DeodapMatcher(min_confidence=0.5)
+    m.deodap_catalog = CATALOG
+    other = dict(AMZ[0])
+    other["source"] = "meesho"
+    rec = m.find_matches([other])[0]
+    assert rec.net_margin_inr is None
+    assert rec.roi_pct is None
+
+
+def test_winners_require_known_fee_model():
+    m = DeodapMatcher(min_confidence=0.5)
+    m.deodap_catalog = CATALOG
+    unknown = dict(AMZ[0])
+    unknown["source"] = "meesho"
+    known = dict(AMZ[0])
+    known["source"] = "amazon"
+    winners = m.filter_winners(
+        m.find_matches([unknown, known]),
+        min_absolute_margin=0.0,
+        min_margin_pct=0.0,
+        min_ticket_price=0.0,
+    )
+    assert len(winners) == 1
+    assert winners[0].marketplace == "amazon"

@@ -2,7 +2,7 @@ import os
 from dataclasses import asdict, dataclass
 from typing import List, Optional
 
-from scrapers.sources.base import AsyncDynamicSession, MarketplaceSpider
+from scrapers.sources.base import AsyncDynamicSession, MarketplaceSpider, Request, Response
 from scrapers.parsing_utils import (
     extract_product_id,
     parse_int,
@@ -198,10 +198,22 @@ class MeeshoSpider(MarketplaceSpider):
             "h1",
         ) or f"Product {product_id}"
         current_price = parse_price(
-            self._text(response, "meesho:price", '[data-testid="product-price"]', ".product-price", ".price")
+            self._text(
+                response,
+                "meesho:price",
+                '[data-testid="product-price"]',
+                ".product-price",
+                ".price",
+            )
         )
         mrp = parse_price(
-            self._text(response, "meesho:mrp", '[data-testid="product-mrp"]', ".mrp", ".original-price")
+            self._text(
+                response,
+                "meesho:mrp",
+                '[data-testid="product-mrp"]',
+                ".mrp",
+                ".original-price",
+            )
         )
         discount_pct = None
         if mrp and current_price and mrp > current_price:
@@ -214,10 +226,18 @@ class MeeshoSpider(MarketplaceSpider):
             self._text(response, "meesho:reviews", '[data-testid="review-count"]', ".review-count")
         )
         order_count = parse_int(
-            self._text(response, "meesho:orders", '[data-testid="order-count"]', ".order-count", ".sold-count")
+            self._text(
+                response,
+                "meesho:orders",
+                '[data-testid="order-count"]',
+                ".order-count",
+                ".sold-count",
+            )
         )
 
-        images_count = self._count(response, ".product-image img, [data-testid='product-image'] img") or 1
+        images_count = self._count(
+            response, ".product-image img, [data-testid='product-image'] img"
+        ) or 1
         weight_g = parse_weight_g(
             self._text(response, "meesho:weight", '[data-testid="weight"]', ".weight")
         )
@@ -267,7 +287,9 @@ if __name__ == "__main__":
 
     import argparse
 
-    parser = argparse.ArgumentParser(description="Meesho Trending spider (use `pipeline run` instead)")
+    parser = argparse.ArgumentParser(
+        description="Meesho Trending spider (use `pipeline run` instead)"
+    )
     parser.add_argument("--mock", action="store_true", help="Write bundled mock data")
     parser.add_argument("--limit", type=int, default=30, help="Max products")
     args = parser.parse_args()

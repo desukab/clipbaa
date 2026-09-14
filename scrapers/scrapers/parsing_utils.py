@@ -216,7 +216,8 @@ def parse_dimensions_cm(text: Optional[str]) -> Optional[str]:
     if not text:
         return None
     cm_match = re.search(
-        r"(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*(?:cm|centimeters?|cms)\b",
+        r"(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*"
+        r"(?:cm|centimeters?|cms)\b",
         text,
         re.IGNORECASE,
     )
